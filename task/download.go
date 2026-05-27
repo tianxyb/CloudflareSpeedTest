@@ -31,6 +31,8 @@ var (
 
 	TestCount = defaultTestNum
 	MinSpeed  = defaultMinSpeed
+
+	Interface string // 指定测速使用的网卡名（绑定 socket 到该网卡的本地地址）
 )
 
 func checkDownloadDefault() {
@@ -107,9 +109,65 @@ func getDialContext(ip *net.IPAddr) func(ctx context.Context, network, address s
 	} else {
 		fakeSourceAddr = fmt.Sprintf("[%s]:%d", ip.String(), TCPPort)
 	}
+	dialer := newDialer(ip)
 	return func(ctx context.Context, network, address string) (net.Conn, error) {
-		return (&net.Dialer{}).DialContext(ctx, network, fakeSourceAddr)
+		return dialer.DialContext(ctx, network, fakeSourceAddr)
 	}
+}
+
+// newDialer 构造一个 net.Dialer，若指定了 -interface 参数则将 LocalAddr 设为该网卡上与目标 IP 同族的本地地址，
+// 操作系统会据此选择对应网卡发送数据包。未指定或解析失败时返回默认 Dialer。
+func newDialer(ip *net.IPAddr) *net.Dialer {
+	dialer := &net.Dialer{}
+	if Interface == "" {
+		return dialer
+	}
+	localAddr := getLocalAddr(ip)
+	if localAddr != nil {
+		dialer.LocalAddr = localAddr
+	}
+	return dialer
+}
+
+// getLocalAddr 返回指定网卡上与目标 IP 同族（IPv4/IPv6）的第一个非链路本地地址，作为 socket 绑定的本地地址。
+func getLocalAddr(ip *net.IPAddr) net.Addr {
+	iface, err := net.InterfaceByName(Interface)
+	if err != nil {
+		if utils.Debug {
+			utils.Red.Printf("[调试] 网卡 %s 查找失败: %v\n", Interface, err)
+		}
+		return nil
+	}
+	addrs, err := iface.Addrs()
+	if err != nil {
+		if utils.Debug {
+			utils.Red.Printf("[调试] 获取网卡 %s 地址失败: %v\n", Interface, err)
+		}
+		return nil
+	}
+	wantV4 := isIPv4(ip.String())
+	for _, a := range addrs {
+		var localIP net.IP
+		switch v := a.(type) {
+		case *net.IPNet:
+			localIP = v.IP
+		case *net.IPAddr:
+			localIP = v.IP
+		}
+		if localIP == nil || localIP.IsLinkLocalUnicast() || localIP.IsLinkLocalMulticast() {
+			continue
+		}
+		if wantV4 && localIP.To4() != nil {
+			return &net.TCPAddr{IP: localIP.To4()}
+		}
+		if !wantV4 && localIP.To4() == nil && localIP.To16() != nil {
+			return &net.TCPAddr{IP: localIP}
+		}
+	}
+	if utils.Debug {
+		utils.Red.Printf("[调试] 网卡 %s 上未找到与目标 IP %s 匹配的本地地址\n", Interface, ip.String())
+	}
+	return nil
 }
 
 // 统一的请求报错调试输出

@@ -62,6 +62,8 @@ https://github.com/XIU2/CloudflareSpeedTest
         指定IP段数据；直接通过参数指定要测速的 IP 段数据，英文逗号分隔；(默认 空)
     -o result.csv
         写入结果文件；如路径含有空格请加上引号；值为空时不写入文件 [-o ""]；(默认 result.csv)
+    -interface eth0
+        指定测速网卡；将 socket 绑定到该网卡的本地地址，通过该网卡的网络进行测速；(默认 空，由系统路由决定)
 
     -dd
         禁用下载测速；禁用后测速结果会按延迟排序 (默认按下载速度排序)；(默认 启用)
@@ -98,6 +100,7 @@ https://github.com/XIU2/CloudflareSpeedTest
 	flag.StringVar(&task.IPFile, "f", "ip.txt", "IP段数据文件")
 	flag.StringVar(&task.IPText, "ip", "", "指定IP段数据")
 	flag.StringVar(&utils.Output, "o", "result.csv", "输出结果文件")
+	flag.StringVar(&task.Interface, "interface", "", "指定测速网卡")
 
 	flag.BoolVar(&task.Disable, "dd", false, "禁用下载测速")
 	flag.BoolVar(&task.TestAll, "allip", false, "测速全部 IP")
