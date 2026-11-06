@@ -85,8 +85,8 @@ func (p *Ping) start(ip *net.IPAddr) {
 	<-p.control
 }
 
-// bool connectionSucceed float32 time
-func (p *Ping) tcping(ip *net.IPAddr) (bool, time.Duration) {
+// bool connectionSucceed float32 time error
+func (p *Ping) tcping(ip *net.IPAddr) (bool, time.Duration, error) {
 	startTime := time.Now()
 	var fullAddress string
 	if isIPv4(ip.String()) {
@@ -98,11 +98,11 @@ func (p *Ping) tcping(ip *net.IPAddr) (bool, time.Duration) {
 	dialer.Timeout = tcpConnectTimeout
 	conn, err := dialer.Dial("tcp", fullAddress)
 	if err != nil {
-		return false, 0
+		return false, 0, err
 	}
 	defer conn.Close()
 	duration := time.Since(startTime)
-	return true, duration
+	return true, duration, nil
 }
 
 // pingReceived pingTotalTime
@@ -113,10 +113,18 @@ func (p *Ping) checkConnection(ip *net.IPAddr) (recv int, totalDelay time.Durati
 	}
 	colo = "" // TCPing 不获取 colo
 	for i := 0; i < PingTimes; i++ {
-		if ok, delay := p.tcping(ip); ok {
-			recv++
-			totalDelay += delay
+		ok, delay, err := p.tcping(ip)
+		if !ok {
+			if utils.Debug {
+				utils.Red.Printf("[调试] IP: %s, TCPing 第 %d 次失败，错误信息: %v\n", ip.String(), i+1, err)
+			}
+			continue
 		}
+		if utils.Debug { // 调试模式下，输出每次探测的耗时，便于发现异常偏低的样本
+			utils.Red.Printf("[调试] IP: %s, TCPing 第 %d 次成功，耗时: %.3f ms\n", ip.String(), i+1, float64(delay.Nanoseconds())/1000/1000)
+		}
+		recv++
+		totalDelay += delay
 	}
 	return
 }

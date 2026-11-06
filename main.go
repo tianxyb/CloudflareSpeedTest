@@ -69,6 +69,15 @@ https://github.com/XIU2/CloudflareSpeedTest
         禁用下载测速；禁用后测速结果会按延迟排序 (默认按下载速度排序)；(默认 启用)
     -allip
         测速全部的IP；对 IP 段中的每个 IP (仅支持 IPv4) 进行测速；(默认 每个 /24 段随机测速一个 IP)
+    -ip6suffix ::1,1234:5678:9abc:def0
+        IPv6 后缀；指定后 IPv6 地址的后 64 位将固定为该后缀，仅前 64 位在 IP 段内随机，
+        多个后缀英文逗号分隔，适用于 CloudFront 等仅特定后缀可达的 CDN；(默认 空，后 64 位随机)
+    -ip6n 1024
+        前缀数量；配合 [-ip6suffix] 使用，指定每个 IPv6 段在段内均匀抽取的前缀数量，
+        越大地域覆盖越广、测速越慢（不会超过该段能容纳的前缀数）；(默认 1024)
+    -ip6align 56
+        前缀对齐；配合 [-ip6suffix] 使用，指定前缀按多少位对齐，如 56 则前缀低 8 位恒为 0
+        （第 4 组 hextet 低字节为 0，与 CloudFront 实测地址规律一致）；(默认 64，即可随机到前 64 位)
 
     -debug
         调试输出模式；会在一些非预期情况下输出更多日志以便判断原因；(默认 关闭)
@@ -104,6 +113,9 @@ https://github.com/XIU2/CloudflareSpeedTest
 
 	flag.BoolVar(&task.Disable, "dd", false, "禁用下载测速")
 	flag.BoolVar(&task.TestAll, "allip", false, "测速全部 IP")
+	flag.StringVar(&task.IPv6Suffix, "ip6suffix", "", "IPv6 后缀")
+	flag.IntVar(&task.IPv6PrefixCount, "ip6n", 1024, "每个 IPv6 段的前缀数量")
+	flag.IntVar(&task.IPv6PrefixAlign, "ip6align", 64, "前缀对齐位数")
 
 	flag.BoolVar(&utils.Debug, "debug", false, "调试输出模式")
 
