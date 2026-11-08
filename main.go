@@ -64,6 +64,9 @@ https://github.com/XIU2/CloudflareSpeedTest
         写入结果文件；如路径含有空格请加上引号；值为空时不写入文件 [-o ""]；(默认 result.csv)
     -interface eth0
         指定测速网卡；将 socket 绑定到该网卡的本地地址，通过该网卡的网络进行测速；(默认 空，由系统路由决定)
+    -mark 0x02
+        socket mark；为测速发出的连接设置 SO_MARK（支持 0x 十六进制或十进制），
+        仅 Linux 有效，且需要 root 或 CAP_NET_ADMIN 权限；(默认 0，不设置)
 
     -dd
         禁用下载测速；禁用后测速结果会按延迟排序 (默认按下载速度排序)；(默认 启用)
@@ -110,6 +113,7 @@ https://github.com/XIU2/CloudflareSpeedTest
 	flag.StringVar(&task.IPText, "ip", "", "指定IP段数据")
 	flag.StringVar(&utils.Output, "o", "result.csv", "输出结果文件")
 	flag.StringVar(&task.Interface, "interface", "", "指定测速网卡")
+	flag.Func("mark", "socket mark（如 0x02）", func(s string) error { return task.ParseSocketMark(s) })
 
 	flag.BoolVar(&task.Disable, "dd", false, "禁用下载测速")
 	flag.BoolVar(&task.TestAll, "allip", false, "测速全部 IP")

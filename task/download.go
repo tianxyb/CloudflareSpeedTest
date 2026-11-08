@@ -117,8 +117,14 @@ func getDialContext(ip *net.IPAddr) func(ctx context.Context, network, address s
 
 // newDialer 构造一个 net.Dialer，若指定了 -interface 参数则将 LocalAddr 设为该网卡上与目标 IP 同族的本地地址，
 // 操作系统会据此选择对应网卡发送数据包。未指定或解析失败时返回默认 Dialer。
+// 若指定了 -mark 参数，则在 socket 创建后为其设置 SO_MARK。
 func newDialer(ip *net.IPAddr) *net.Dialer {
 	dialer := &net.Dialer{}
+	if SocketMark > 0 { // 在 net.Dialer 的提前返回之前设置，保证 -interface 未指定时 mark 也生效
+		if control := markControl(SocketMark); control != nil {
+			dialer.Control = control
+		}
+	}
 	if Interface == "" {
 		return dialer
 	}
