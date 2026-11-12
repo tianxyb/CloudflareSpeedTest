@@ -63,7 +63,8 @@ https://github.com/XIU2/CloudflareSpeedTest
     -o result.csv
         写入结果文件；如路径含有空格请加上引号；值为空时不写入文件 [-o ""]；(默认 result.csv)
     -interface eth0
-        指定测速网卡；将 socket 绑定到该网卡的本地地址，通过该网卡的网络进行测速；(默认 空，由系统路由决定)
+        指定测速网卡；只接受网卡名（不支持填写 IP），Linux 下将 socket 绑定到该网卡（SO_BINDTODEVICE），
+        IPv4 与 IPv6 连接均生效；网卡不存在时跳过绑定、由系统路由决定；(默认 空)
     -mark 0x02
         socket mark；为测速发出的连接设置 SO_MARK（支持 0x 十六进制或十进制），
         仅 Linux 有效，且需要 root 或 CAP_NET_ADMIN 权限；(默认 0，不设置)

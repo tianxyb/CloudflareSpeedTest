@@ -115,9 +115,10 @@ func getDialContext(ip *net.IPAddr) func(ctx context.Context, network, address s
 	}
 }
 
-// newDialer 构造一个 net.Dialer，若指定了 -interface 参数则将 LocalAddr 设为该网卡上与目标 IP 同族的本地地址，
-// 操作系统会据此选择对应网卡发送数据包。未指定或解析失败时返回默认 Dialer。
-// 若指定了 -mark 参数，则在 socket 创建后为其设置 SO_MARK。
+// newDialer 构造一个 net.Dialer：指定了 [-mark] 则为其设置 SO_MARK；
+// 指定了 [-interface] 则在支持设备绑定的平台（Linux）把 socket 绑定到该网卡（SO_BINDTODEVICE），
+// 其他平台退化为绑定该网卡上与目标 IP 同族的本地地址。
+// 网卡只接受网卡名，不存在时跳过绑定、由系统路由决定。未指定时返回默认 Dialer。
 func newDialer(ip *net.IPAddr) *net.Dialer {
 	dialer := &net.Dialer{}
 	if SocketMark > 0 { // 在 net.Dialer 的提前返回之前设置，保证 -interface 未指定时 mark 也生效
@@ -128,22 +129,25 @@ func newDialer(ip *net.IPAddr) *net.Dialer {
 	if Interface == "" {
 		return dialer
 	}
-	localAddr := getLocalAddr(ip)
-	if localAddr != nil {
+	iface, err := net.InterfaceByName(Interface)
+	if err != nil {
+		if utils.Debug {
+			utils.Red.Printf("[调试] 网卡 %s 查找失败，跳过绑定: %v\n", Interface, err)
+		}
+		return dialer
+	}
+	if bindInterface(dialer, iface.Name) { // 支持设备绑定的平台到此即可，源地址交由内核按同族地址选择
+		return dialer
+	}
+	if localAddr := getLocalAddr(iface, ip); localAddr != nil { // 其他平台回退到绑定本地地址
 		dialer.LocalAddr = localAddr
 	}
 	return dialer
 }
 
 // getLocalAddr 返回指定网卡上与目标 IP 同族（IPv4/IPv6）的第一个非链路本地地址，作为 socket 绑定的本地地址。
-func getLocalAddr(ip *net.IPAddr) net.Addr {
-	iface, err := net.InterfaceByName(Interface)
-	if err != nil {
-		if utils.Debug {
-			utils.Red.Printf("[调试] 网卡 %s 查找失败: %v\n", Interface, err)
-		}
-		return nil
-	}
+// 仅用于不支持设备绑定的平台。
+func getLocalAddr(iface *net.Interface, ip *net.IPAddr) net.Addr {
 	addrs, err := iface.Addrs()
 	if err != nil {
 		if utils.Debug {
